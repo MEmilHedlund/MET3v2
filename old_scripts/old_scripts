@@ -1,0 +1,156 @@
+def distance(self, point1, point2):
+    # Function to compute Euclidean distance between two points
+
+    return torch.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+    
+    
+
+def calculate_rotated_bbox_dimensions(self, coords):
+    """
+    Calculate the width and height of a rotated bounding box given its corner coordinates.
+
+    Args:
+    coords (list or np.ndarray): An array of eight elements [x1, y1, x2, y2, x3, y3, x4, y4]
+                                representing the four corner points of the bounding box.
+
+    Returns:
+    tuple: (width, height) of the bounding box.
+    """
+    if len(coords) != 8:
+        raise ValueError("The input should contain exactly eight numerical values representing four corner points.")
+    
+    # Reshape and ensure the coordinates are in a numpy array
+    coords = coords.reshape(4, 2)
+    
+
+    # Calculate distances between all pairs of points
+    distances = []
+    for i in range(4):
+        for j in range(i + 1, 4):
+            dist = self.distance(coords[i], coords[j])
+            distances.append(dist)
+    
+    # Assuming the largest two distances represent the diagonal lengths of the rectangle
+    distances = sorted(distances, reverse=True)
+    
+    # The width and height are the first two maximum distances after the diagonals
+    width = distances[2]
+    height = distances[3]
+
+    return width, height
+
+def center_to_corners(self, centers, sizes):
+    # centers: [N, 2] (cpx, cpy)
+    # sizes: [N, 2] (width, height)
+    half_sizes = sizes / 2
+    top_left = centers - half_sizes
+    bottom_right = centers + half_sizes
+    return torch.cat([top_left, bottom_right], dim=1)
+
+
+
+def correct_coordinates(self, boxes):
+    # Assuming boxes is of shape [N, 4] and format [x1, y1, x2, y2]
+    x1, y1 = boxes[:, 0], boxes[:, 1]
+    x2, y2 = boxes[:, 2], boxes[:, 3]
+
+    # Correcting the coordinates
+    new_x1, new_x2 = torch.min(x1, x2), torch.max(x1, x2)
+    new_y1, new_y2 = torch.min(y1, y2), torch.max(y1, y2)
+
+    corrected_boxes = torch.stack([new_x1, new_y1, new_x2, new_y2], dim=1)
+    return corrected_boxes
+
+"""
+    # Use this function to correct your bounding box coordinates before computing CIOU loss
+    corrected_pred_boxes = correct_coordinates(pred_boxes)
+    corrected_true_boxes = correct_coordinates(true_boxes)"""
+
+pred_HW = self.center_to_corners(predicted_states[i][indices[i][0], :indices2], predicted_states[i][indices[i][0], 2:4])
+
+targ_HW = self.center_to_corners(targets[i][indices[i][1], :2], targets[i][indices[i][1], 2:4])
+
+loss += ciou_loss(pred_HW, targ_HW, reduction='sum')
+
+"""
+for i in range(batch_size):
+    for obj in targets[i]:
+        fig = plt.figure()
+        ax = fig.add_subplot()
+        counter = 0
+        plt.show()
+        for j in range(0, len(obj)-2, 2):
+            counter += 1
+            #print(j, j+1)
+            #print(obj[j], obj[j+1])
+            plt.plot(obj[j].cpu(), obj[j+1].cpu(), marker='x')
+            plt.text(obj[j].cpu(), obj[j+1].cpu(), str(counter))
+        a = torch.cat((obj[:2], obj[6:8]))
+        a = a.reshape(1,4)
+        new_obja = self.correct_coordinates(a)
+        print("################################################")
+        print(a)
+        print(new_obja)
+        
+        print("####")
+        
+        b = torch.cat((obj[2:4], obj[4:6]))
+        b = b.reshape(1,4)
+        new_objb = self.correct_coordinates(b)
+        print(b)
+        print(new_objb)
+        """
+
+
+
+
+        """#Från DETR source code
+        def loss_boxes(self, outputs, targets, indices, num_boxes):
+        Compute the losses related to the bounding boxes, the L1 regression loss and the GIoU loss
+           targets dicts must contain the key "boxes" containing a tensor of dim [nb_target_boxes, 4]
+           The target boxes are expected in format (center_x, center_y, w, h), normalized by the image size.
+           KAnske är möjligt att ha (center_x,center_y,w,h,rot) för att få dem roterade också?
+        
+        assert 'pred_boxes' in outputs
+        idx = self._get_src_permutation_idx(indices)
+        src_boxes = outputs['pred_boxes'][idx]
+        target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+
+        loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
+
+        losses = {}
+        losses['loss_bbox'] = loss_bbox.sum() / num_boxes
+
+        #Kanske behöver den box_ops från DETR om vi ska använda denna?
+        loss_giou = 1 - torch.diag(box_ops.generalized_box_iou(
+            box_ops.box_cxcywh_to_xyxy(src_boxes),
+            box_ops.box_cxcywh_to_xyxy(target_boxes)))
+        losses['loss_giou'] = loss_giou.sum() / num_boxes
+        return losses"""
+
+"""
+def correct_coordinates(self, boxes):
+    # Assuming boxes is of shape [N, 4] and format [x1, y1, x2, y2]
+    x1, y1 = boxes[:, 0], boxes[:, 1]
+    x2, y2 = boxes[:, 2], boxes[:, 3]
+
+    # Correcting the coordinates
+    new_x1, new_x2 = torch.min(x1, x2), torch.max(x1, x2)
+    new_y1, new_y2 = torch.min(y1, y2), torch.max(y1, y2)
+
+    corrected_boxes = torch.stack([new_x1, new_y1, new_x2, new_y2], dim=1)
+    return corrected_boxes
+"""
+"""
+def correct_coordinates(self, boxes):
+    # Assuming boxes is of shape [N, 4] and format [x1, y1, x2, y2]
+    x1, y1 = boxes[:, 0], boxes[:, 1]
+    x2, y2 = boxes[:, 2], boxes[:, 3]
+
+    # Correcting the coordinates
+    new_x1, new_x2 = torch.min(x1, x2), torch.max(x1, x2)
+    new_y1, new_y2 = torch.min(y1, y2), torch.max(y1, y2)
+
+    corrected_boxes = torch.stack([new_x1, new_y1, new_x2, new_y2], dim=1)
+    return corrected_boxes
+"""

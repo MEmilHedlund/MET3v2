@@ -1,0 +1,51 @@
+general:
+    pytorch_and_numpy_seed: null  # Seeds pytorch and numpy (but not the data generator). `null` for random seed
+
+arch:
+    type: 'ddetr_v2'
+    num_queries: 32
+    d_model: 512 
+    d_detections: 3 #(r, vr, phi)
+    encoder:
+        n_heads: 8
+        n_layers: 6
+        dim_feedforward: 2048
+        dropout: 0.1
+    decoder:
+        n_heads: 8
+        n_layers: 6
+        dim_feedforward: 2048
+        dropout: 0.1
+    d_prediction_hidden: 128
+    n_prediction_layers: 3
+    with_state_refine: True
+    two_stage: True
+    false_detect_embedding: False
+
+loss:
+    type: 'detr'
+    c_loss_multiplier: 2
+    return_intermediate: True
+    contrastive_classifier: True
+    false_classifier: False
+
+training:
+    n_gradient_steps: 1000000
+    learning_rate: 0.0001
+    batch_size: 2
+    n_splits: 1
+    reduce_lr_patience: 20000
+    reduce_lr_factor: 0.25
+    checkpoint_interval: 500 # after how many gradient steps to save the weights
+    device: 'auto' # can be 'cpu', 'cuda', or 'auto' (use GPU if available)
+
+debug:
+    print_interval: 1
+    enable_plot: False
+    plot_interval: 5
+    save_plot_figs: False
+    save_plot_figs_interval: 500
+    print_reduce_lr_messages: True
+    log_interval: 1
+    evaluate_gospa_interval: 1
+    enable_logging: True

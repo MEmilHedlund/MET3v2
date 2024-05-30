@@ -1,0 +1,101 @@
+
+import torch
+from torchvision.ops import ciou_loss
+
+def iou_loss(boxes1, boxes2):
+    """
+    Calculate the IoU loss between two sets of boxes.
+    boxes1, boxes2: tensors of shape [N, 4], each box defined as [x1, y1, x2, y2]
+    """
+    # Ensure boxes are [x1, y1, x2, y2] with x1 < x2 and y1 < y2
+    x1, y1, x2, y2 = boxes1[:, 0], boxes1[:, 1], boxes1[:, 2], boxes1[:, 3]
+    x1g, y1g, x2g, y2g = boxes2[:, 0], boxes2[:, 1], boxes2[:, 2], boxes2[:, 3]
+
+    # Calculate intersection coordinates
+    inter_x1 = torch.max(x1, x1g)
+    inter_y1 = torch.max(y1, y1g)
+    inter_x2 = torch.min(x2, x2g)
+    inter_y2 = torch.min(y2, y2g)
+
+    # Calculate intersection area
+    intersection = (inter_x2 - inter_x1).clamp(min=0) * (inter_y2 - inter_y1).clamp(min=0)
+
+    # Calculate union area
+    area1 = (x2 - x1) * (y2 - y1)
+    area2 = (x2g - x1g) * (y2g - y1g)
+    union = area1 + area2 - intersection
+
+    # Calculate IoU
+    iou = intersection / (union + 1e-6)  # Add a small epsilon to avoid division by zero
+
+    # IoU loss is 1 - IoU
+    return iou, intersection, union
+
+
+def diou_loss(boxes1, boxes2):
+    """
+    Calculate the DIoU loss between two sets of boxes.
+    boxes1, boxes2: tensors of shape [N, 4], each box defined as [x1, y1, x2, y2]
+    """
+    # Calculate IoU
+    iou, intersection, union= iou_loss(boxes1, boxes2)
+
+    # Calculate center points of each box
+    center1 = (boxes1[:, 2:] + boxes1[:, :2]) / 2
+    center2 = (boxes2[:, 2:] + boxes2[:, :2]) / 2
+
+    # Calculate the square of the Euclidean distance between box centers
+    d = torch.sqrt(torch.sum((center2 - center1) ** 2, dim=1))
+
+    # Calculate the diagonal of the smallest enclosing box
+    enclosing_tl = torch.min(boxes1[:, :2], boxes2[:, :2])
+    enclosing_br = torch.max(boxes1[:, 2:], boxes2[:, 2:])
+    diag_vec = enclosing_br - enclosing_tl
+    c = torch.sqrt(torch.sum(diag_vec ** 2, dim=1))
+
+    dc =  (d**2 / (c**2 + 1e-6))
+    # Calculate the DIoU
+    diou = iou + dc  # Adding epsilon to avoid division by zero
+
+    return 1- diou, diou, dc, iou  # Return the mean DIoU loss across all boxes
+
+def ciou_loss(boxes1, boxes2):
+    """
+    Calculate the Complete IoU (CIoU) loss between two sets of boxes.
+    boxes1, boxes2: tensors of shape [N, 4], each box defined as [x1, y1, x2, y2]
+    """
+    L_diou, diou, dc, iou = diou_loss(boxes1, boxes2)
+    # Aspect ratio consistency term
+    w1 = boxes1[:, 2] - boxes1[:, 0]
+    h1 = boxes1[:, 3] - boxes1[:, 1]
+    w2 = boxes2[:, 2] - boxes2[:, 0]
+    h2 = boxes2[:, 3] - boxes2[:, 1]
+    
+    v = (4 / (torch.pi**2)) * (torch.atan(w2 / (h2 + 1e-6)) - torch.atan(w1 / (h1 + 1e-6)))**2
+    alpha = v / ((1 - iou) + v + 1e-6)
+    
+    # Calculate the CIoU
+    ciou = diou + (alpha * v)
+    L_ciou = 1 - ciou
+    return L_ciou, ciou # Return the mean CIoU loss across all boxes
+
+# Example usage
+#boxes1 = torch.tensor([[0, 0, 2, 2]], dtype=torch.float32)
+#boxes2 = torch.tensor([[0, 0, 2, 2]], dtype=torch.float32)
+boxes1 = torch.tensor([[-4, -2.5, -2, 0], [2, 0, 4, 2.5], [-1, -1, 2, 2], [0, 0, 2, 2], [0, 0, 2, 2]], dtype=torch.float32)
+boxes2 = torch.tensor([[-4, -5, 0, 0], [0, 0, 4, 5], [0, 0, 3, 3], [-2, -2, 0, 0], [0, 0, 2, 2]], dtype=torch.float32)
+
+
+L_diou, diou, iou, dc = diou_loss(boxes1, boxes2)
+L_ciou, ciou =ciou_loss(boxes1, boxes2)
+print('IoU:     ', dc)
+print("d^2/c^2: ", iou)
+print("DIoU:    ", diou)
+print("CIoU:    ", ciou)
+print("#####")
+
+print("IoU Loss:    ", torch.round(1-iou, decimals=3))
+print("DIoU Loss:   ", torch.round(L_diou, decimals=3))
+print("CIoU Loss:   ", torch.round(L_ciou, decimals=3))
+
+closs = ciou_loss(boxes1, boxes2)
